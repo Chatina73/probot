@@ -1,10 +1,11 @@
 ---
-next: docs/webhooks.md
+next: webhooks
+title: Developing an app
 ---
 
 # Developing an app
 
-To develop a Probot app, you will first need a recent version of [Node.js](https://nodejs.org/) installed. Open a terminal and run `node -v` to verify that it is installed and is at least 10.0.0 or later. Otherwise, [install the latest version](https://nodejs.org/).
+To develop a Probot app, you will first need a recent version of [Node.js](https://nodejs.org/) installed. Open a terminal and run `node -v` to verify that it is installed and is at least 18.0.0 or later. Otherwise, [install the latest version](https://nodejs.org/).
 
 **Contents:**
 
@@ -17,10 +18,10 @@ To develop a Probot app, you will first need a recent version of [Node.js](https
 - [Installing the app on a repository](#installing-the-app-on-a-repository)
 - [Debugging](#debugging)
 - [Run Probot programmatically](#run-probot-programmatically)
-  - [Use `run`](#use-run)
-  - [Use `server`](#use-server)
-  - [Use `createNodeMiddleware`](#use-createnodemiddleware)
-  - [Use `probot`](#use-probot)
+  - [Use run](#use-run)
+  - [Use server](#use-server)
+  - [Use createNodeMiddleware](#use-createnodemiddleware)
+  - [Use probot](#use-probot)
   - [Use Probot's Octokit](#use-probots-octokit)
 
 <!-- tocstop -->
@@ -112,12 +113,13 @@ To automatically configure your GitHub App, follow these steps:
 
 1. Run the app locally by running `npm start` in your terminal.
 1. Next follow instructions to visit [http://localhost:3000](http://localhost:3000) (or your custom Glitch URL).
-1. You should see something like this: ![Screenshot of Probot's setup wizzard](/docs/assets/probot-setup-wizzard.png)
+1. You should see something like this: ![Screenshot of Probot's setup wizard](/assets/img/probot-setup-wizard.png)
 1. Go ahead and click the **Register a GitHub App** button.
 1. Next, you'll get to decide on an app name that isn't already taken. Note: if you see a message "Name is already in use" although no such app exists, it means that a GitHub organization with that name exists and cannot be used as an app name.
 1. After registering your GitHub App, you'll be redirected to install the app on any repositories. At the same time, you can check your local `.env` and notice it will be populated with values GitHub sends us in the course of that redirect.
-1. Install the app on a test repository and try triggering a webhook to activate the bot!
 1. Restart the server in your terminal (press <kbd>ctrl</kbd> + <kbd>c</kbd> to stop the server)
+1. Install the app on a test repository.
+1. Try triggering a webhook to activate the bot!
 1. You're all set! Head down to [Debugging](#debugging) to learn more about developing your Probot App.
 
 GitHub App Manifests--otherwise known as easy app creation--make it simple to generate all the settings necessary for a GitHub App. This process abstracts the [Configuring a GitHub App](#configuring-a-github-app) section. You can learn more about how GitHub App Manifests work and how to change your settings for one via the [GitHub Developer Docs](https://docs.github.com/en/developers/apps/creating-a-github-app-from-a-manifest/).
@@ -151,33 +153,47 @@ You'll need to create a test repository and install your app by clicking the "In
 
 ## Run Probot programmatically
 
-### Use `run`
+### Use run
 
 If you take a look to the `npm start` script, this is what it runs: `probot run ./index.js`. This is nice, but you sometimes need more control over how your Node.js application is executed. For example, if you want to use custom V8 flags, `ts-node`, etc. you need more flexibility. In those cases there's a simple way of executing your probot application programmatically:
 
 ```js
 // main.js
-const { run } = require("probot");
-const app = require("./index.js");
+import { run } from "probot";
+import app from "./index.js";
 
 // pass a probot app function
 run(app);
 ```
 
+You can also set your own [`Octokit` constructor](https://github.com/octokit/core.js) with custom plugins and a custom logger while still reading default options from `.env`:
+
+```js
+// main.js
+import { run } from "probot";
+import app from "./index.js";
+
+// pass a probot app function by overriding Probot options
+run(app, {
+  Octokit: ProbotOctokit.plugin(myPlugin),
+  log: pino(),
+});
+```
+
 Now you can run `main.js` however you want.
 
-### Use `server`
+### Use server
 
 The [`run`](https://github.com/probot/probot/blob/master/src/run.ts) function that gets executed when running `probot run ./index.js` does two main things
 
 1. Read configuration from environment variables and local files
-2. Start a [`Server`](https://probot.github.io/api/latest/classes/server.html) instance
+2. Start a [`Server`](https://probot.github.io/api/latest/classes/server_server.Server.html) instance
 
-Among other things, using the Server instance permits you to set your own [`Octokit` constructor](https://github.com/octokit/core.js) with custom plugins and a custom logger.
+If you need more control over the Server instance, you can use the `Server` class directly:
 
 ```js
-const { Server, Probot } = require("probot");
-const app = require("./index.js");
+import { Server, Probot } from "probot";
+import app from "./index.js";
 
 async function startServer() {
   const server = new Server({
@@ -194,15 +210,15 @@ async function startServer() {
 }
 ```
 
-The `server` instance gives you access to the express app instance (`server.expressApp`) as well as the [`Probot`](https://probot.github.io/api/latest/classes/probot.html) instance (`server.probotApp`).
+The `server` instance gives you access to the express app instance (`server.expressApp`) as well as the [`Probot`](https://probot.github.io/api/latest/classes/probot.Probot.html) instance (`server.probotApp`).
 
-### Use `createNodeMiddleware`
+### Use createNodeMiddleware
 
-If you have have your own server or deploy to a serverless environment that supports loading [Express-style middleware](https://expressjs.com/en/guide/using-middleware.html) or Node's http middleware (`(request, response) => { ... }`), you can use `createNodeMiddleware`.
+If you have your own server or deploy to a serverless environment that supports loading [Express-style middleware](https://expressjs.com/en/guide/using-middleware.html) or Node's http middleware (`(request, response) => { ... }`), you can use `createNodeMiddleware`.
 
 ```js
-const { createNodeMiddleware, Probot } = require("probot");
-const app = require("./index.js");
+import { createNodeMiddleware, Probot } from "probot";
+import app from "./index.js";
 
 const probot = new Probot({
   appId: 123,
@@ -210,25 +226,34 @@ const probot = new Probot({
   secret: "webhooksecret123",
 });
 
-module.exports = createNodeMiddleware(app, { probot });
+export default createNodeMiddleware(app, { probot });
 ```
 
 If you want to read probot's configuration from the same environment variables as [`run`](#run), use the [`createProbot`](https://probot.github.io/api/latest/index.html#createprobot) export
 
 ```js
-const { createNodeMiddleware, createProbot } = require("probot");
-const app = require("./index.js");
+import { createNodeMiddleware, createProbot } from "probot";
+import app from "./index.js";
 
-module.exports = createNodeMiddleware(app, { probot: createProbot() });
+export default createNodeMiddleware(app, { probot: createProbot() });
 ```
 
-### Use `probot`
-
-If you don't Probot's http handling in order to receive and verify events from GitHub via webhook requests, you can use the [`Probot`](https://probot.github.io/api/latest/classes/probot.html) class directly.
+By default, `createNodeMiddleware()` uses `/api/github/webhooks` as the webhook endpoint. To customize this behaviour, you can use the `webhooksPath` option.
 
 ```js
-const { Probot } = require("probot");
-const app = require("./index.js");
+export default createNodeMiddleware(app, {
+  probot: createProbot(),
+  webhooksPath: "/path/to/webhook/endpoint",
+});
+```
+
+### Use probot
+
+If you don't use Probot's http handling in order to receive and verify events from GitHub via webhook requests, you can use the [`Probot`](https://probot.github.io/api/latest/classes/probot.Probot.html) class directly.
+
+```js
+import { Probot } from "probot";
+import app from "./index.js";
 
 async function example() {
   const probot = new Probot({
@@ -248,19 +273,21 @@ async function example() {
 }
 ```
 
-Using the `Probot` class directly is great for [writing tests](./testing.md) for your Probot app function. It permits you to pass a custom logger to test for log output, disable throttling, request retries, and much more.
+Using the `Probot` class directly is great for [writing tests](/docs/testing) for your Probot app function. It permits you to pass a custom logger to test for log output, disable throttling, request retries, and much more.
 
 ### Use Probot's Octokit
 
 Sometimes you may need to create your own instance of Probot's internally used [Octokit](https://github.com/octokit/rest.js/#readme) class, for example when using the [OAuth user authorization flow](https://docs.github.com/en/developers/apps/identifying-and-authorizing-users-for-github-apps). You may access the class by importing `ProbotOctokit`:
 
 ```js
-const { ProbotOctokit } = require("probot");
+import { ProbotOctokit } from "probot";
 
 function myProbotApp(app) {
   const octokit = new ProbotOctokit({
     // any options you'd pass to Octokit
-    auth: "token <myToken>",
+    auth: {
+      token: "yourToken",
+    },
     // and a logger
     log: app.log.child({ name: "my-octokit" }),
   });

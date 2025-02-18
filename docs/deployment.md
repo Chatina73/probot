@@ -1,5 +1,6 @@
 ---
-next: docs/http.md
+next: http
+title: Deployment
 ---
 
 # Deployment
@@ -24,6 +25,7 @@ Every app can either be deployed stand-alone, or combined with other apps in one
     - [GitHub Actions](#github-actions)
     - [Begin](#begin)
     - [Vercel](#vercel)
+    - [Netlify Functions](#netlify-functions)
 - [Share the app](#share-the-app)
 - [Combining apps](#combining-apps)
 - [Error tracking](#error-tracking)
@@ -106,7 +108,7 @@ Probot runs like [any other Node app](https://devcenter.heroku.com/articles/depl
 
 1.  Deploy the app to heroku with `git push`:
 
-        $ git push heroku master
+        $ git push heroku main
         ...
         -----> Node.js app detected
         ...
@@ -121,29 +123,29 @@ Probot runs like [any other Node app](https://devcenter.heroku.com/articles/depl
 
 ### As serverless function
 
-When deploying your Probot app to a serverless/function environment, you don't need to worry about handling the http webhook requests coming from GitHub, the platform takes care of that. In many cases you can use [`createNodeMiddleware`](./development.md#use-createNodeMiddleware) directly, e.g. for Vercel or Google Cloud Function.
+When deploying your Probot app to a serverless/function environment, you don't need to worry about handling the http webhook requests coming from GitHub, the platform takes care of that. In many cases you can use [`createNodeMiddleware`](/docs/development/#use-createNodeMiddleware) directly, e.g. for Vercel or Google Cloud Function.
 
 ```js
-const { Probot, createProbot } = require("probot");
-const { createMyMiddleware } = require("my-probot-middleware");
-const myApp = require("./my-app.js");
+import { Probot, createProbot } from "probot";
+import { createMyMiddleware } from "my-probot-middleware";
+import myApp from "./my-app.js";
 
-module.exports = createMyMiddleware(myApp, { probot: createProbot() });
+export default createMyMiddleware(myApp, { probot: createProbot() });
 ```
 
-For other environments such as AWS Lambda or GitHub Actions, you can use one of [Probot's adapters](https://github.com/probot/?q=adapter).
+For other environments such as AWS Lambda, Netlify Functions or GitHub Actions, you can use one of [Probot's adapters](https://github.com/probot/?q=adapter).
 
 #### AWS Lambda
 
 ```js
 // handler.js
-const {
+import {
   createLambdaFunction,
   createProbot,
-} = require("@probot/adapter-aws-lambda-serverless");
-const appFn = require("./app");
+} from "@probot/adapter-aws-lambda-serverless";
+import appFn from "./app.js";
 
-module.exports.webhooks = createLambdaFunction(appFn, {
+export const webhooks = createLambdaFunction(appFn, {
   probot: createProbot(),
 });
 ```
@@ -156,6 +158,7 @@ Examples
 
 - Probot's "Hello, world!" example deployed to AWS Lambda: [probot/example-aws-lambda-serverless](https://github.com/probot/example-aws-lambda-serverless/#readme)
 - Issue labeler bot deployed to AWS Lambda: [riyadhalnur/issuelabeler](https://github.com/riyadhalnur/issuelabeler#issuelabeler)
+- Auto-Me-Bot is deployed to AWS Lambda without using the _serverless_ framework and adapter: [TomerFi/auto-me-bot](https://github.com/TomerFi/auto-me-bot)
 
 Please add yours!
 
@@ -163,13 +166,13 @@ Please add yours!
 
 ```js
 // ProbotFunction/index.js
-const {
+import {
   createProbot,
   createAzureFunction,
-} = require("@probot/adapter-azure-functions");
-const app = require("../app");
+} from "@probot/adapter-azure-functions";
+import app from "../app.js";
 
-module.exports = createAzureFunction(app, { probot: createProbot() });
+export default createAzureFunction(app, { probot: createProbot() });
 ```
 
 Learn more
@@ -186,8 +189,8 @@ Please add yours!
 
 ```js
 // function.js
-const { createNodeMiddleware, createProbot } = require("probot");
-const app = require("./app");
+import { createNodeMiddleware, createProbot } from "probot";
+import app from "./app.js";
 
 exports.probotApp = createNodeMiddleware(app, { probot: createProbot() });
 ```
@@ -201,8 +204,8 @@ Please add yours!
 #### GitHub Actions
 
 ```js
-const { run } = require("@probot/adapter-github-actions");
-const app = require("./app");
+import { run } from "@probot/adapter-github-actions";
+import app from "./app.js";
 
 run(app);
 ```
@@ -213,7 +216,7 @@ Learn more
 
 Examples
 
-- Probot's "Hello, world!" example deployed as a GitHub Action: [probot/example-github-actions](https://github.com/probot/example-github-actions/#readme)
+- Probot's "Hello, world!" example deployed as a GitHub Action: [probot/example-github-action](https://github.com/probot/example-github-action/#readme)
 
 Please add yours!
 
@@ -255,7 +258,7 @@ Please add yours!
    /**
     * @param {import('probot').Probot} app
     */
-   module.exports = (app) => {
+   export default (app) => {
      app.log("Yay! The app was loaded!");
 
      app.on("issues.opened", async (context) => {
@@ -278,25 +281,44 @@ Please add yours!
 
 ```js
 // api/github/webhooks/index.js
-const { createNodeMiddleware, createProbot } = require("probot");
+import { createNodeMiddleware, createProbot } from "probot";
 
-const app = require("../../../app");
-const probot = createProbot({
-  defaults: {
-    webhookPath: "/api/github/webhooks",
-  },
+import app from "../../../app.js";
+
+export default createNodeMiddleware(app, {
+  probot: createProbot(),
+  webhooksPath: "/api/github/webhooks",
 });
-
-module.exports = createNodeMiddleware(app, { probot });
 ```
+
+**Important:** Set `NODEJS_HELPERS` environment variable to `0` in order to prevent Vercel from parsing the response body.
+See [Disable Helpers](https://vercel.com/docs/functions/runtimes/node-js#disabling-helpers-for-node.js) for detail.
 
 Examples
 
 - [probot/example-vercel](https://github.com/probot/example-vercel#readme)
 - [wip/app](https://github.com/wip/app#readme)
 - [all-contributors/app](https://github.com/all-contributors/app#readme)
+- [probot-nextjs-starter](https://github.com/maximousblk/probot-nextjs-starter#readme)
 
 Please add yours!
+
+#### Netlify Functions
+
+[Netlify Functions](https://www.netlify.com/products/functions/) are deployed on AWS by Netlify itself. So we can use `@probot/adapter-aws-lambda-serverless` adapter for Netlify Functions as well.
+
+```js
+// functions/index.js
+import {
+  createLambdaFunction,
+  createProbot,
+} from "@probot/adapter-aws-lambda-serverless";
+import appFn from "../src/app";
+
+export const handler = createLambdaFunction(appFn, {
+  probot: createProbot(),
+});
+```
 
 ## Share the app
 
@@ -327,10 +349,10 @@ Note that this feature is only supported when [run as Node app](#as-node-app). F
 
 ```js
 // app.js
-const autoresponder = require("probot-autoresponder");
-const settings = require("probot-settings");
+import autoresponder from "probot-autoresponder";
+import settings from "probot-settings";
 
-module.exports = async (app, options) => {
+export default async (app, options) => {
   await autoresponder(app, options);
   await settings(app, options);
 };
